@@ -1,0 +1,24 @@
+{
+  "name": "certifyx",
+  "version": "1.0.0",
+  "description": "CertifyX - Bulk Certificate Generator. Upload a certificate template and Excel sheet, generate hundreds of certificates instantly in your browser.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "keywords": [
+    "certificate",
+    "generator",
+    "bulk",
+    "excel",
+    "canvas"
+  ],
+  "author": "Pruthviraj Thorbole",
+  "license": "MIT"
+}
