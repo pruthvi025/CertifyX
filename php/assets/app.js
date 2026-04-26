@@ -144,16 +144,63 @@ function loadExcel(file) {
   var reader = new FileReader();
   reader.onload = function(ev) {
     try {
-      var wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-      var json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-      if (!json.length) { showToast('No data rows found.', 'error'); return; }
+      var wb    = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      var aoa   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      if (!aoa.length) { showToast('No data rows found.', 'error'); return; }
+
+      // Find the header row: the row with the most non-empty columns in the first 10 rows
+      var headerRowIndex = 0;
+      var maxCols = 0;
+      for (var i = 0; i < Math.min(10, aoa.length); i++) {
+        var nonEmptyCount = (aoa[i] || []).filter(function(cell) { return String(cell).trim() !== ''; }).length;
+        if (nonEmptyCount > maxCols) {
+          maxCols = nonEmptyCount;
+          headerRowIndex = i;
+        }
+      }
+
+      var rawHeaders = aoa[headerRowIndex] || [];
+      excelCols = [];
+      var json  = [];
+
+      // Ensure unique, non-empty header names
+      for (var c = 0; c < rawHeaders.length; c++) {
+        var hName = String(rawHeaders[c]).trim();
+        if (!hName) hName = 'Column_' + (c + 1);
+        
+        var baseName = hName;
+        var count = 1;
+        while (excelCols.indexOf(hName) !== -1) {
+          hName = baseName + '_' + count;
+          count++;
+        }
+        excelCols.push(hName);
+      }
+
+      // Build JSON objects from rows below the header
+      for (var j = headerRowIndex + 1; j < aoa.length; j++) {
+        var rowData = aoa[j] || [];
+        var rowObj  = {};
+        var hasData = false;
+        for (var c = 0; c < excelCols.length; c++) {
+          var val = rowData[c] !== undefined ? rowData[c] : '';
+          rowObj[excelCols[c]] = val;
+          if (String(val).trim() !== '') hasData = true;
+        }
+        if (hasData) json.push(rowObj);
+      }
+
+      if (!json.length) { showToast('No valid data rows found after headers.', 'error'); return; }
+
       excelRows = json;
-      excelCols = Object.keys(json[0]);
-      document.getElementById('excel-name').textContent      = file.name;
+      
+      document.getElementById('excel-name').textContent       = file.name;
       document.getElementById('excel-file-tag').style.display = 'flex';
-      document.getElementById('excel-zone').style.display    = 'none';
-      document.getElementById('rows-info').style.display     = 'block';
-      document.getElementById('rows-badge').textContent      = json.length + ' rows detected';
+      document.getElementById('excel-zone').style.display     = 'none';
+      document.getElementById('rows-info').style.display      = 'block';
+      document.getElementById('rows-badge').textContent       = json.length + ' rows detected';
       setupMapping();
       populateNamingCol();
       updatePreview();
@@ -161,6 +208,7 @@ function loadExcel(file) {
       showToast(json.length + ' records loaded.', 'success');
     } catch(err) {
       showToast('Error reading file. Check the format.', 'error');
+      console.error(err);
     }
   };
   reader.readAsArrayBuffer(file);
